@@ -1,9 +1,28 @@
-import { useNavigate, Form, useActionData, redirect } from "react-router-dom";
+import {
+  Form,
+  useNavigate,
+  useLoaderData,
+  useActionData,
+  redirect,
+} from "react-router-dom";
+import { obtenerCliente, actualizarCliente } from "../data/clientes";
 import Formulario from "../components/Formulario";
 import Error from "../components/Error";
-import { agregarCLiente } from "../data/clientes";
 
-export async function action({ request }) {
+export async function loader({ params }) {
+  const cliente = await obtenerCliente(params.clienteId);
+  if (Object.values(cliente).length === 0) {
+    throw new Response("", {
+      status: 404,
+      statusText: "El cliente no fue encontrado",
+    });
+  }
+  return cliente;
+
+  // return { ok: true };
+}
+
+export async function action({ request, params }) {
   const formData = await request.formData();
   const datos = Object.fromEntries(formData);
   const email = formData.get("email");
@@ -21,27 +40,25 @@ export async function action({ request }) {
     errores.push("El email no es válido");
   }
 
-  //Retornar datos sí hay errores
   if (Object.keys(errores).length) {
     return errores;
   }
-  await agregarCLiente(datos);
-  return redirect("/");
 
-  //Este return es completamente necesario en las nuevas versiones de react para la funcion useActionData siempre tiene que retonar algo
-  // return { ok: true };
+  //Actualizar el cliente
+  await actualizarCliente(params.clienteId, datos);
+  return redirect("/");
 }
 
-function NuevoCliente() {
-  const errores = useActionData();
+function EditarCliente() {
   const navigate = useNavigate();
+  const cliente = useLoaderData();
+  const errores = useActionData();
 
-  console.log(errores);
   return (
     <>
-      <h1 className="text-4xl font-black text-blue-900">Nuevo Cliente</h1>
+      <h1 className="text-4xl font-black text-blue-900">Editar Cliente</h1>
       <p className="mt-3">
-        Llena todos los campos para registrar un nuevo cliente
+        A continuación podrás modificar los datos de un cliente
       </p>
 
       <div className="flex justify-end">
@@ -57,12 +74,12 @@ function NuevoCliente() {
           errores.map((error, i) => <Error key={i}>{error}</Error>)}
 
         <Form method="post" noValidate>
-          <Formulario />
+          <Formulario cliente={cliente} />
 
           <input
             type="submit"
             className="w-full p-3 mt-5 text-lg font-bold text-white uppercase bg-blue-800"
-            value="Registrar Cliente"
+            value="Guardar Cliente"
           />
         </Form>
       </div>
@@ -70,4 +87,4 @@ function NuevoCliente() {
   );
 }
 
-export default NuevoCliente;
+export default EditarCliente;
